@@ -9,20 +9,31 @@ import sys
 
 
 def minimun_dict(my_dict):
-    if (len(my_dict) == 0):
-        return np.nan
-
     error=np.nan
     composant_min=np.nan
-    for _, k in my_dict.items():
-        if k.heap!=[]:
+    key_min=np.nan
+    list_a_suprime=[]
+    k_current=err_h.ErrorHeap()
+    for l,k in my_dict.items():
+        if not k.is_empty():
             mini=k.top()
             error_mini=np.nanmin([error,mini[0]])
             if error_mini!=error:
                 error=error_mini
                 composant_min=mini
-    
+                key_min=l
+                k_current=k.heap
+                
+        else:
+            list_a_suprime.append(l)
 
+    for k in list_a_suprime:
+        del my_dict[k]
+    
+    
+    #print("la clé du min renvoyé est ",key_min)
+    #print("la heap associe est ", k_current)
+    
     return composant_min
             
 
@@ -35,7 +46,8 @@ def main():
         my_file = sys.argv[1]
         mesh = acq.acquire(my_file)
         meshman.generate_colors(mesh)
-        #am.affiche_mesh(mesh)
+        print("voici à quoi ressemble le mesh avant la simplification")
+        am.affiche_mesh(mesh)
         
         mon_dic_d_indice=defaultdict(err_h.ErrorHeap)
 
@@ -51,7 +63,7 @@ def main():
             first_point=mesh.from_vertex_handle(fv)
             second_point=mesh.to_vertex_handle(fv)
             erreur=err.error(mesh,first_point,second_point)
-            l=[erreur,fv]
+            l=[erreur,fv,first_point,second_point]
             hash1=str(mesh.point(first_point))
             hash2=str(mesh.point(second_point))
             mon_dic_d_indice[hash1].push(l)
@@ -59,74 +71,64 @@ def main():
 
         print("On a fini de mettre tous les halfedge dans le dict")
         
+        iterator=0
         
         composant_min=minimun_dict(mon_dic_d_indice)
         
-
         
-        while composant_min!=np.nan:
-            
+        
+        while composant_min is not np.nan:
+            #print("composant_mini1",composant_min)
             current_halfedge=composant_min[1]
-            v1=mesh.to_vertex_handle(current_halfedge)
-            v2=mesh.from_vertex_handle(current_halfedge)
+            v1=composant_min[2]
+            v2=composant_min[3]
+            
             mesh.collapse(current_halfedge)
             
             point_mis_a_jour=[]
             hash1=str(mesh.point(v1))
-            hash2 = str(mesh.point(v2))
+            hash2=str(mesh.point(v2))
+            #mon_dic_d_indice[hash1].pop()
             
-            # print("le dic du sommet à détruire",mon_dic_d_indice[hash1].heap)
+            #print("le dic du sommet à détruire",mon_dic_d_indice[hash1].heap)
             
-            m=len(mon_dic_d_indice[hash1].heap)
+            print("taille avant le parcours du sommet à détruire",len(mon_dic_d_indice))
             
-            all_empty = True
-            for _, v in mon_dic_d_indice.items():
-                if (not v.is_empty()):
-                    all_empty = False
-                    break
             
-            if (all_empty):
-                
-                for k, v in mon_dic_d_indice.items():
-                    print(f"Tas du dico, clé {k}\n")
-                    print(v.__str__())
-                
-                return mesh
             
-            while (not mon_dic_d_indice[hash1].is_empty()):
+            
+            while not mon_dic_d_indice[hash1].is_empty():
+
                 list_ =mon_dic_d_indice[hash1].pop()
                 
-                print("hash1 : ", mon_dic_d_indice[hash1].heap)
+                error_,k =  list_[0],list_[1]
                 
-                
-                error_,k =list_[0],list_[1]
-                
-                point_debut=mesh.from_vertex_handle(k)
+                point_debut=list_[3]
                 
                 if point_debut!=v1:
                     point_etudie=point_debut
+                
                 else:
-                    point_etudie=mesh.to_vertex_handle(k)   
+                    point_etudie=list_[2]   
                 
                 if point_etudie not in point_mis_a_jour:
+                    
                     point_mis_a_jour.append(point_etudie)
                     
                     hashetudiee=str(mesh.point(point_etudie))
                     heap_etudie=mon_dic_d_indice[hashetudiee]
                     
-                    # print("le point à remettre en place", point_etudie)
                     
-                    # print("le dic du point à remettre en place",heap_etudie)
                     
-                    n=len(heap_etudie.heap)
+                    Heap_de_rechange=err_h.ErrorHeap()
                     
-                    for _ in range(n):
+                    while not heap_etudie.is_empty():
                         
                         list_renvoye=heap_etudie.pop()
                         
                         error_,j=list_renvoye[0],list_renvoye[1]
                         
-                        point1=mesh.from_vertex_handle(j)
+                        point1=list_renvoye[2]
                         
                         if point1!=point_etudie:
                             point_adjacent=point1
@@ -134,67 +136,128 @@ def main():
                             if point_adjacent!=v1:
                                 erreur=err.error(mesh,point_adjacent,point_etudie)
                                 list_renvoye[0]=erreur
-                                heap_etudie.push(list_renvoye)
+                                Heap_de_rechange.push(list_renvoye)
                         
                         else:
-                            point_adjacent=mesh.to_vertex_handle(j)
+                            point_adjacent=list_renvoye[3]
                             
                             if point_adjacent!=v1:
                                 erreur=err.error(mesh,point_etudie,point_adjacent)
                                 list_renvoye[0]=erreur
-                                heap_etudie.push(list_renvoye)
+                                Heap_de_rechange.push(list_renvoye)
+                        
+                    mon_dic_d_indice[hashetudiee]=Heap_de_rechange
             
             
-            for k in mon_dic_d_indice[hash2].heap:
-                print("hash2 :", mon_dic_d_indice[hash2])
-                point_debut=mesh.from_vertex_handle(k[1])
+            del mon_dic_d_indice[hash1]            
+            
+            hash2=str(mesh.point(v2))
+            
+            print("taille après parcours du vertice à detruire",len(mon_dic_d_indice)) 
+            
+            ma_liste_=err_h.ErrorHeap()
+
+            while not mon_dic_d_indice[hash2].is_empty():
+                list_ =mon_dic_d_indice[hash2].pop()
+
+                point_debut=list_[2]
+                point_fin=list_[3]
                 
-                if point_debut!=v2:
-                    point_etudie=point_debut
-                else:
-                    point_etudie=mesh.to_vertex_handle(k[1])
+                if point_debut!=v1 and point_fin !=v1:
                     
-                if point_etudie not in point_mis_a_jour:
+                    if point_debut!=v2:
+                        point_etudie=point_debut
                     
-                    point_mis_a_jour.append(point_etudie)
+                    else:
+                        point_etudie=point_fin
                     
-                    hashetudiee=str(mesh.point(point_etudie))
-                    heap_etudie=mon_dic_d_indice[hashetudiee]
+                    if point_etudie not in point_mis_a_jour:
                     
-                    n=len(heap_etudie.heap)
+                        point_mis_a_jour.append(point_etudie)
                     
-                    for _ in range(n):
+                        hashetudiee=str(mesh.point(point_etudie))
                         
-                        list_renvoye=heap_etudie.pop()
-                        error_,j =list_renvoye[0],list_renvoye[1]
+                        heap_etudie=mon_dic_d_indice[hashetudiee]
+                    
+                    
+                        Heap_de_rechange=err_h.ErrorHeap()
                         
-                        point1=mesh.from_vertex_handle(j)
+                        while not heap_etudie.is_empty():
                         
-                        if point1!=point_etudie:
-                            point_adjacent=point1
+                            list_renvoye=heap_etudie.pop()
+                            error_,j =list_renvoye[0],list_renvoye[1]
+                        
+                            point1=list_renvoye[2]
+                        
+                            if point1!=point_etudie:
+                                point_adjacent=point1
                             
-                            if point_adjacent!=v1:
-                                erreur=err.error(mesh,point_adjacent,point_etudie)
-                                list_renvoye[0]=erreur
-                                heap_etudie.push(list_renvoye)
+                                if point_adjacent!=v1:
+                                    erreur=err.error(mesh,point_adjacent,point_etudie)
+                                    list_renvoye[0]=erreur
+                                    Heap_de_rechange.push(list_renvoye)
                             
-                        else:
-                            point_adjacent=mesh.to_vertex_handle(j)
+                            else:
+                                point_adjacent=list_renvoye[3]
                         
-                            if point_adjacent!=v1:
-                                erreur=err.error(mesh,point_etudie,point_adjacent)
-                                list_renvoye[0]=erreur
-                                heap_etudie.push(list_renvoye)                    
+                                if point_adjacent!=v1:
+                                    erreur=err.error(mesh,point_etudie,point_adjacent)
+                                    list_renvoye[0]=erreur
+                                    Heap_de_rechange.push(list_renvoye)
+                            
+                        mon_dic_d_indice[hashetudiee]=Heap_de_rechange                    
+                
+                    ma_liste_.push(list_)
+            
+            mon_dic_d_indice[hash2]=ma_liste_
+
+            if ma_liste_.is_empty():
+                del mon_dic_d_indice[hash2]
+            
+            
+            
+            
+            print("taille après le parcours de sommet contracté",len(mon_dic_d_indice))
+            
+            print("\n")
             
             
 
-            del mon_dic_d_indice[hash1]
+            #print("on supprime les éléments du dictionnaire")
+            #print("\n")
+            
+            
+         
+ 
+
+
+
+            #print(f"iterator :  {iterator}")
+            #for l,v in mon_dic_d_indice.items():
+                #print(f"key {l}: {len(v.heap)}")
+            
+            #print("\n")
+            
+            #print("le hashage etudié", mon_dic_d_indice[hash1].heap)
             
 
-            
+                                  
             composant_min=minimun_dict(mon_dic_d_indice)
-    
+            
+            #print(len(mon_dic_d_indice))
+            
+            
+            
+            
+            
+            
+            
+                        
+            iterator+=1
+            
     return mesh            
             
 if __name__ == "__main__":
-    main()
+    mesh=main()
+    am.affiche_mesh(mesh)    
+
