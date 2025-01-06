@@ -34,6 +34,7 @@ def affiche_mesh(my_mesh):
     faces = []
     for f in my_mesh.faces():
         faces.append([v.idx() for v in my_mesh.fv(f)])
+    
     mesh_faces = Poly3DCollection([vertices[face] for face in faces], linewidths=1, edgecolors='r', alpha=0.25)
 
 
@@ -50,6 +51,14 @@ def affiche_mesh(my_mesh):
     
     ax.set_aspect('auto')
     plt.show()
+    
+    #edge=[vertices[face] for face in faces]
+    #sum_edge=0
+    #for k in edge:
+        #sum_edge+=k.shape[0]*k.shape[1]
+
+    #print("nombre de vertice",len(vertices))
+    #print("nombre de edge", sum_edge)
 
 # Credits for bunny and teapot and torus : gaschler (github)
 #affiche_mesh(om.read_trimesh("teapot.off"))

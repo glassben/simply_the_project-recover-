@@ -57,7 +57,9 @@ def main():
         # profiter de la structure pour avoir une recherche plus facile.
         # par exemple créer un dictionnaire stockant l'état courant d'un point dans la Heap.
         
-        print("on commence à mettre tous les halfedges")
+        #print("on commence à mettre tous les halfedges")
+        
+        #nombre_edge=0
         
         for fv in mesh.halfedges():
             first_point=mesh.from_vertex_handle(fv)
@@ -68,14 +70,18 @@ def main():
             hash2=str(mesh.point(second_point))
             mon_dic_d_indice[hash1].push(l)
             mon_dic_d_indice[hash2].push(l)
+            
+            #nombre_edge+=1
 
-        print("On a fini de mettre tous les halfedge dans le dict")
+        #print("On a fini de mettre tous les halfedge dans le dict")
         
         iterator=0
         
+        #print("nombre de vertex",len(mon_dic_d_indice))
+        #print("nombre d'arête", nombre_edge)
+
         composant_min=minimun_dict(mon_dic_d_indice)
-        
-        
+         
         
         while composant_min is not np.nan:
             #print("composant_mini1",composant_min)
@@ -92,7 +98,7 @@ def main():
             
             #print("le dic du sommet à détruire",mon_dic_d_indice[hash1].heap)
             
-            print("taille avant le parcours du sommet à détruire",len(mon_dic_d_indice))
+            #print("taille avant le parcours du sommet à détruire",len(mon_dic_d_indice))
             
             
             
@@ -153,7 +159,7 @@ def main():
             
             hash2=str(mesh.point(v2))
             
-            print("taille après parcours du vertice à detruire",len(mon_dic_d_indice)) 
+            #print("taille après parcours du vertice à detruire",len(mon_dic_d_indice)) 
             
             ma_liste_=err_h.ErrorHeap()
 
@@ -217,9 +223,9 @@ def main():
             
             
             
-            print("taille après le parcours de sommet contracté",len(mon_dic_d_indice))
+            #print("taille après le parcours de sommet contracté",len(mon_dic_d_indice))
             
-            print("\n")
+            #print("\n")
             
             
 
@@ -258,6 +264,16 @@ def main():
     return mesh            
             
 if __name__ == "__main__":
-    mesh=main()
-    am.affiche_mesh(mesh)    
+    my_mesh=main()
+    #nombre_vertex_fin=0
+    #nombre_edge_fin=0
+
+    #for v in my_mesh.vertices():
+        #nombre_vertex_fin+=1
+    #for fv in my_mesh.halfedges():
+        #nombre_edge_fin+=1
+    
+    am.affiche_mesh(my_mesh)    
+    #print("nombre de vertex après simplification",nombre_vertex_fin)
+    #print("nombre de edge après simplification",nombre_edge_fin)
 
