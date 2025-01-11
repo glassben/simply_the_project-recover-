@@ -90,11 +90,13 @@ def Q(mesh,v0,v1):
 
         verticesList=meshman.get_3_vertices_of_a_face(mesh,fh)
         e1_transpose=(verticesList[1]-verticesList[0])
-        e1_transpose=e1_transpose/np.linalg.norm(e1_transpose)
+        if (np.linalg.norm(e1_transpose) != 0):
+            e1_transpose=e1_transpose/np.linalg.norm(e1_transpose)
         e1=e1_transpose.reshape(3,1)
         e2_transpose=(verticesList[2]-verticesList[0])
         e2_transpose=e2_transpose-np.dot(e1_transpose,e2_transpose)*e1_transpose
-        e2_transpose=e2_transpose/np.linalg.norm(e2_transpose)
+        if (np.linalg.norm(e2_transpose) != 0):
+            e2_transpose=e2_transpose/np.linalg.norm(e2_transpose)
         e2=e2_transpose.reshape(3,1)
         n=len(e1)
 
@@ -110,11 +112,13 @@ def Q(mesh,v0,v1):
         
         verticesList=meshman.get_3_vertices_of_a_face(mesh,fh)                                                                            
         e1_transpose=(verticesList[1]-verticesList[0])
-        e1_transpose=e1_transpose/np.linalg.norm(e1_transpose)
+        if (np.linalg.norm(e1_transpose) != 0):
+            e1_transpose=e1_transpose/np.linalg.norm(e1_transpose)
         e1=e1_transpose.reshape(3,1)
         e2_transpose=(verticesList[2]-verticesList[0])
         e2_transpose=e2_transpose-np.dot(e1_transpose,e2_transpose)*e1_transpose
-        e2_transpose=e2_transpose/np.linalg.norm(e2_transpose)
+        if (np.linalg.norm(e2_transpose) != 0):
+            e2_transpose=e2_transpose/np.linalg.norm(e2_transpose)
         e2=e2_transpose.reshape(3,1)
         n=len(e1)
 

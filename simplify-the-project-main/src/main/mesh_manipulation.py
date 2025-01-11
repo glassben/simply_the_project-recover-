@@ -99,3 +99,54 @@ def get_3_vertices_of_a_face(mesh,f):
     point3=mesh.point(next(iterator))
     verticesList=[point1,point2,point3]
     return verticesList
+
+
+# Conditions pour faire un collapse
+
+def is_mesh_vertex_boundary(mesh, he):
+    """Détermine si au moins un sommet d'une semi-arête d'un maillage est au bord.
+
+    Args:
+        mesh (Mesh): Maillage considéré.
+        he (HalfEdge): Semi-arête considérée.
+    
+    Returns:
+        Bool: Vaut True si et seulement si un des sommets de la semi-arête est au bord du maillage.
+    """
+    v0 = mesh.from_vertex_handle(he)
+    v1 = mesh.to_vertex_handle(he)
+    return mesh.is_boundary(v0) or mesh.is_boundary(v1)
+
+# def is_strong_curvature(mesh, he, threshold=0.5):
+#     """Détermine si les courbures entre les deux extrémités d'une semi-arête dépasse un certain seuil.
+
+#     Args:
+#         mesh (Mesh): Maillage considéré.
+#         he (HalfEdge): Semi-arête considérée.
+#         threshold (Float): Seuil de courbure.
+    
+#     Returns:
+#         Bool: Vaut True si et seulement si la différence de courbure dépasse le seuil.
+#     """
+#     v0 = mesh.from_vertex_handle(he)
+#     v1 = mesh.to_vertex_handle(he)
+#     delta_curv = abs(courbure(mesh, v0) - courbure(mesh, v1))
+#     return delta_curv > threshold
+
+
+def is_collapse_possible(mesh, he):
+    """Détermine si un collapse est possible ou non.
+
+    Args:
+        mesh (Mesh): Maillage où l'on souhaite effectuer un collapse.
+        he (HalfEdge): Semi-arête à collapse.
+    
+    Returns:
+        Bool: Vaut True si et seulement si le collapse est possible.
+    """
+    cond_boundary_vertex = not is_mesh_vertex_boundary(mesh, he)
+    cond_boundary = not mesh.is_boundary(he)
+    # cond_curvature = not is_strong_curvature(mesh, he)
+    cond_final = mesh.is_collapse_ok(he)
+    
+    return cond_boundary_vertex and cond_boundary and cond_final

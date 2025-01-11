@@ -1,155 +1,102 @@
+import openmesh as om
+import sys
+import time
+
 import acquisition as acq
 import affiche_mesh as am
 import error_heap as err_h
-import errors as err
-import mesh_manipulation as meshman
-from collections import defaultdict
-import numpy as np
-import sys
+import errors as errs
+import mesh_manipulation as mm
 
 
-def minimun_dict(my_dict):
-    error=np.nan
-    composant_min=np.nan
-    for k in my_dict.values():
-        if k.heap!=[]:
-            mini=k.top()
-            error_mini=np.nanmin([error,mini[0]])
-            if error_mini!=error:
-                error=error_mini
-                composant_min=mini
-    return composant_min
-            
+def simplify(mesh, heap, threshold):
+    """Fonction effectuant la simplification du mesh.
 
+    Args:
+        mesh (Mesh): Mesh à simplifier.
+        heap (ErrorHeap): Tas des coûts des half-edge collapses.
+    
+    Returns:
+        Mesh: Le mesh simplifié.
+    """
+    
+    while not heap.is_empty():
+        # Extraire le half-edge avec le coût minimum
+        error, he = heap.pop()
 
+        if error > threshold:
+            break
+
+        # Vérifier si le collapse est possible
+        if mm.is_collapse_possible(mesh, he):
+            # Collapse du half-edge
+            mesh.collapse(he)
+
+            # Mettre à jour les coûts des half-edges affectés
+            affected_halfedges = []
+            for vh in [mesh.from_vertex_handle(he), mesh.to_vertex_handle(he)]:
+                for outgoing_he in mesh.voh(vh):  # Voisins par half-edge
+                    if outgoing_he not in affected_halfedges:
+                        affected_halfedges.append(outgoing_he)
+
+            for affected_he in affected_halfedges:
+                if mm.is_collapse_possible(mesh, affected_he):
+                    v0 = mesh.from_vertex_handle(affected_he)
+                    v1 = mesh.to_vertex_handle(affected_he)
+                    new_error = errs.error(mesh, v0, v1)
+                    heap.push([new_error, affected_he])
+
+    # Nettoyer les données obsolètes
+    mesh.garbage_collection()
+
+    return mesh
 
 def main():
-    if (len(sys.argv) != 2):
-        raise Exception(f"1 argument attendu, {len(sys.argv)-1} ont été donné(s).")
-    else:
-        my_file = sys.argv[1]
-        mesh = acq.acquire(my_file)
-        meshman.generate_colors(mesh)
-        #am.affiche_mesh(mesh)
-        
-        mon_dic_d_indice=defaultdict(err_h.ErrorHeap)
+    mesh = acq.acquire(sys.argv[1])
 
-        #On a un problème on parcours toutes la head pour retrouver l'indice des points
-        # qui sont adjacents aux points qui vont subir le edge collapse.
-        # Pas de différence avec un parcours de toute la liste du Heap, on peut sans doute 
-        # profiter de la structure pour avoir une recherche plus facile.
-        # par exemple créer un dictionnaire stockant l'état courant d'un point dans la Heap.
-        
-        print("on commence à mettre tous les halfedges")
-        
-        for fv in mesh.halfedges():
-            first_point=mesh.from_vertex_handle(fv)
-            second_point=mesh.to_vertex_handle(fv)
-            erreur=err.error(mesh,first_point,second_point)
-            l=[erreur,fv]
-            hash1=str(mesh.point(first_point))
-            hash2=str(mesh.point(second_point))
-            mon_dic_d_indice[hash1].push(l)
-            mon_dic_d_indice[hash2].push(l)
+    print("Mesh avant simplification")
+    am.affiche_mesh(mesh)
+    
+    nv1, ne1 = am.comparison_simplification(mesh, True)
 
-        print("On a fini de mettre tous les halfedge dans le dict")
-        
-        composant_min=minimun_dict(mon_dic_d_indice)
-        
-        while composant_min!=np.nan:
-            
-            current_halfedge=composant_min[1]
-            v1=mesh.to_vertex_handle(current_halfedge)
-            v2=mesh.from_vertex_handle(current_halfedge)
-            mesh.collapse(current_halfedge)
-            
-            point_mis_a_jour=[]
-            hash1=str(mesh.point(v1))
-            
-            for k in mon_dic_d_indice[hash1].heap:
-                point_debut=mesh.from_vertex_handle(k[1])
-                
-                if point_debut!=v1:
-                    point_etudie=point_debut
-                else:
-                    point_etudie=mesh.to_vertex_handle(k[1])   
-                
-                if point_etudie not in point_mis_a_jour:
-                    point_mis_a_jour.append(point_etudie)
-                    
-                    hashetudiee=str(mesh.point(point_etudie))
-                    heap_etudie=mon_dic_d_indice[hashetudiee]
-                    
-                    for i,j in enumerate(heap_etudie.heap):
-                        point1=mesh.from_vertex_handle(j[1])
-                        
-                        if point1!=point_etudie:
-                            point_adjacent=point1
-                            if point_adjacent==v1:
-                                del heap_etudie.heap[i]
-                                heap_etudie.reorganise_heap_down(i)
-                            else:
-                                erreur=err.error(mesh,point_adjacent,point_etudie)
-                                heap_etudie.heap[i][0]=erreur
-                                heap_etudie.reorganise_heap_up(i)
-                        
-                        else:
-                            point_adjacent=mesh.to_vertex_handle(j[1])
-                            if point_adjacent==v1:
-                                del heap_etudie.heap[i]
-                                heap_etudie.reorganise_heap_down(i)
-                            else:
-                                erreur=err.error(mesh,point_etudie,point_adjacent)
-                                heap_etudie.heap[i][0]=erreur
-                                heap_etudie.reorganise_heap_up(i)
-            
-            
-            hash2=str(mesh.point(v2))
-            
-            for k in mon_dic_d_indice[hash2].heap:
-                point_debut=mesh.from_vertex_handle(k[1])
-                
-                if point_debut!=v2:
-                    point_etudie=point_debut
-                else:
-                    point_etudie=mesh.to_vertex_handle(k[1])
-                    
-                if point_etudie not in point_mis_a_jour:
-                    point_mis_a_jour.append(point_etudie)
-                    
-                    hashetudiee=str(mesh.point(point_etudie))
-                    heap_etudie=mon_dic_d_indice[point_etudie]
-                    
-                    for i,j in enumerate(heap_etudie.heap):
-                        point1=mesh.from_vertex_handle(j[1])
-                        
-                        if point1!=point_etudie:
-                            point_adjacent=point1
-                            
-                            if point_adjacent==v1:
-                                del heap_etudie.heap[i]
-                                heap_etudie.reorganise_heap_down(i)
-                            else:
-                                erreur=err.error(mesh,point_adjacent,point_etudie)
-                                heap_etudie.heap[i][0]=erreur
-                                heap_etudie.reorganise_heap_up(i)
-                            
-                        else:
-                            point_adjacent=mesh.to_vertex_handle(j[1])
-                        
-                            if point_adjacent==v1:
-                                del heap_etudie.heap[i]
-                                heap_etudie.reorganise_heap_down(i)
-                            else:
-                                erreur=err.error(mesh,point_etudie,point_adjacent)
-                                heap_etudie.heap[i][0]=erreur
-                                heap_etudie.reorganise_heap_up(i)                    
-            
-            
-            print("on supprime les éléments du dictionnaire")
-            del mon_dic_d_indice[hash1]
-            composant_min=minimun_dict(mon_dic_d_indice)
-            
-            
-if __name__ == "__main__":
+
+    # TODO : simplification
+    # 1st step : attribuer les couleurs.
+    mm.generate_colors(mesh)
+    # 2nd step : créer le tas.
+    heap = err_h.ErrorHeap()
+    errors_list = []
+    for he in mesh.halfedges():
+        if mm.is_collapse_possible(mesh, he):
+            v0 = mesh.from_vertex_handle(he)
+            v1 = mesh.to_vertex_handle(he)
+            error = errs.error(mesh, v0, v1)
+            errors_list.append(error)
+            elt_heap = [error, he]
+            heap.push(elt_heap)
+    
+    errors_list.sort()
+    threshold = errors_list[len(errors_list)//2] # Médiane des erreurs
+    print(threshold)
+    
+    # 3rd step : effectuer la simplification.
+    start_simplification_time = time.time()
+    
+    simplified_mesh = simplify(mesh, heap, threshold)
+
+    end_simplification_time = time.time()        
+
+    # Sauvegarder ou visualiser le résultat
+    om.write_mesh(f"simplified_{sys.argv[1]}", simplified_mesh)
+
+    print("Mesh après simplification")
+    am.affiche_mesh(simplified_mesh)
+    nv2, ne2 = am.comparison_simplification(simplified_mesh, True)
+    am.ratio_simplification(nv1, nv2, ne1, ne2)
+    
+    time_exec = round(end_simplification_time - start_simplification_time, 3)
+    print("Temps d'exécution de la simplification :", time_exec, "s")
+
+
+if __name__ == '__main__':
     main()

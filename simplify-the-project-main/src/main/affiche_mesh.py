@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 def print_mesh(mesh):
+    """Affiche un mesh.
+
+    Args:
+        mesh (Mesh): Le mesh que l'on souhaite afficher.
+    """
     print("\nSommets:")
     for vh in mesh.vertices():
         print(f"Sommet {vh.idx()}: {mesh.point(vh)}, RGB : {mesh.color(vh)}")
@@ -20,6 +25,36 @@ def print_mesh(mesh):
         v2 = mesh.to_vertex_handle(heh)
         print(f"Arête {eh.idx()}: ({v1.idx()}, {v2.idx()})")
 
+def comparison_simplification(mesh, display=False):
+    """Calcule et Affiche le nombre d'arêtes et de sommets.
+
+    Args:
+        mesh (Mesh): Mesh dont on souhaite afficher le nombre d'arêtes et de sommets.
+        display (Bool): Booléen valant False par défaut, qui décide si on affiche ou non les informations.
+    
+    Returns:
+        Int, Int: Le nombre d'arêtes et le nombre de sommets.
+    """
+    nb_vertices, nb_edges = len(mesh.vertices()), len(mesh.edges())
+    if display:
+        print("Nombre de sommets : ", nb_vertices)
+        print("Nombre d'arêtes : ", nb_edges)
+    return nb_vertices, nb_edges
+
+def ratio_simplification(nb_vertices, nb_vertices_simpl, nb_edges, nb_edges_simpl):
+    """Affiche le pourcentage de simplification d'un maillage.
+
+    Args:
+        nb_vertices (Int): Le nombre de sommets avant simplification.
+        nb_vertices_simpl (Int): Le nombre de sommets après simplification.
+        nb_edges (Int): Le nombre d'arêtes avant simplification.
+        nb_edges_simpl (Int): Le nombre d'arêtes après simplification.
+    """
+    ratio_vertices = round((1 - (nb_vertices_simpl / nb_vertices)) * 100, 1)
+    ratio_edges = round((1 - (nb_edges_simpl / nb_edges)) * 100, 1)
+    print("Ratio de simplification selon les sommets : ", ratio_vertices, "%")
+    print("Ratio de simplification selon les arêtes : ", ratio_edges, "%")
+
 def affiche_mesh(my_mesh):
     """Affiche graphiquement un mesh.
 
@@ -29,13 +64,12 @@ def affiche_mesh(my_mesh):
     vertices = np.array([my_mesh.point(v) for v in my_mesh.vertices()])
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(vertices[:, 0], vertices[:, 1], vertices[:, 2])
     
     faces = []
     for f in my_mesh.faces():
         faces.append([v.idx() for v in my_mesh.fv(f)])
     
-    mesh_faces = Poly3DCollection([vertices[face] for face in faces], linewidths=1, edgecolors='r', alpha=0.25)
+    mesh_faces = Poly3DCollection([vertices[face] for face in faces], linewidths=1, edgecolors='r', alpha=1.0)
 
 
     ax.add_collection3d(mesh_faces)
@@ -51,14 +85,5 @@ def affiche_mesh(my_mesh):
     
     ax.set_aspect('auto')
     plt.show()
-    
-    #edge=[vertices[face] for face in faces]
-    #sum_edge=0
-    #for k in edge:
-        #sum_edge+=k.shape[0]*k.shape[1]
-
-    #print("nombre de vertice",len(vertices))
-    #print("nombre de edge", sum_edge)
 
 # Credits for bunny and teapot and torus : gaschler (github)
-#affiche_mesh(om.read_trimesh("teapot.off"))

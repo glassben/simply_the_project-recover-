@@ -20,7 +20,7 @@ class ErrorHeap:
         """Ajoute un élément dans le tas, tout en conservant l'intégrité du tas.
 
         Args:
-            edge (List[Float,autre_extremité, HalfEdge]): Une liste contenant le coût du half-edge collapse, et le half-edge collapse.
+            edge (List[Float, HalfEdge]): Une liste contenant le coût du half-edge collapse, et le half-edge collapse.
         """
         hq.heappush(self.heap, edge)
     
