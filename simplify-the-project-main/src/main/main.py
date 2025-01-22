@@ -8,6 +8,8 @@ import error_heap as err_h
 import errors as errs
 import mesh_manipulation as mm
 
+# Credits for bunny.off and teapot.off : gaschler (github)
+
 
 def simplify(mesh, heap, threshold):
     """Fonction effectuant la simplification du mesh.
@@ -87,7 +89,7 @@ def main():
     end_simplification_time = time.time()        
 
     # Sauvegarder ou visualiser le résultat
-    om.write_mesh(f"simplified_{sys.argv[1]}", simplified_mesh)
+    om.write_mesh(f"results/simplified_{sys.argv[1]}", simplified_mesh)
 
     print("Mesh après simplification")
     am.affiche_mesh(simplified_mesh)

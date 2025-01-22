@@ -124,7 +124,7 @@ def is_mesh_vertex_boundary(mesh, he):
 #         mesh (Mesh): Maillage considéré.
 #         he (HalfEdge): Semi-arête considérée.
 #         threshold (Float): Seuil de courbure.
-    
+
 #     Returns:
 #         Bool: Vaut True si et seulement si la différence de courbure dépasse le seuil.
 #     """
@@ -132,6 +132,8 @@ def is_mesh_vertex_boundary(mesh, he):
 #     v1 = mesh.to_vertex_handle(he)
 #     delta_curv = abs(courbure(mesh, v0) - courbure(mesh, v1))
 #     return delta_curv > threshold
+
+
 
 
 def is_collapse_possible(mesh, he):
