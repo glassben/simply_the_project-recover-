@@ -54,85 +54,75 @@ def dist_max(mesh, v0):
             d_max = d
     return d_max
 
-def Q(mesh,v0,v1):
-    """Calcule l'erreur quadric d'un half-edge.
+def Q(mesh, v0, v1):
+    """
+    Calcule l'erreur quadric d'un half-edge.
+
     Args:
         v0 (Vertex): Premier sommet
         v1 (Vertex): Second sommet
 
     Returns:
-        float: l'erreur quadric de la contraction de l'arête orientée
-
+        float: L'erreur quadrique de la contraction de l'arête orientée
     """
+    # Points associés aux sommets
+    point_first_vertex = mesh.point(v0)
+    point_second_vertex = mesh.point(v1)
 
-    "On récupère les deux vertices de l'halfedge"
-    first_vertex= v0
-    second_vertex=v1
-    
+    # Sommet considéré pour la contraction
+    v_considered = point_second_vertex
 
-    "On retranscrit les 2 arêtes en points et on initialise le point considéré à celui du point vers lequel point la demi arête"
-    point_first_vertex=mesh.point(first_vertex)
-    
-    
-    point_second_vertex=mesh.point(second_vertex)
-    
-    v_considéré=point_second_vertex
+    # Récupération des faces adjacentes aux deux sommets
+    adjacent_faces = meshman.get_faces(mesh, v0) + meshman.get_faces(mesh, v1)
 
-    "On initialise l'erreur à 0"
-    res_tot=0
-    
-    " On récupère l'ensemble des faces adjacentes des 2 points " 
-    first_vertex_adjacent_face=meshman.get_faces(mesh,first_vertex)
-    second_vertex_adjacent_face=meshman.get_faces(mesh,second_vertex)
-   
-    "On calcule d'erreur sur chaque face adjacente de la première arête que l'on applique au v considéré "
-    for fh in first_vertex_adjacent_face:
+    # Initialisation de l'erreur totale
+    res_tot = 0
 
-        verticesList=meshman.get_3_vertices_of_a_face(mesh,fh)
-        e1_transpose=(verticesList[1]-verticesList[0])
-        if (np.linalg.norm(e1_transpose) != 0):
-            e1_transpose=e1_transpose/np.linalg.norm(e1_transpose)
-        e1=e1_transpose.reshape(3,1)
-        e2_transpose=(verticesList[2]-verticesList[0])
-        e2_transpose=e2_transpose-np.dot(e1_transpose,e2_transpose)*e1_transpose
-        if (np.linalg.norm(e2_transpose) != 0):
-            e2_transpose=e2_transpose/np.linalg.norm(e2_transpose)
-        e2=e2_transpose.reshape(3,1)
-        n=len(e1)
+    # Prétraitement pour éviter les recalculs
+    identity_matrix = np.identity(3)
 
-        A=np.identity(n) - np.matmul(e1,np.transpose(e1)) - np.matmul(e2,np.transpose(e2))
-        b=np.dot(verticesList[0],e1_transpose)*e1_transpose + np.dot(verticesList[0],e2_transpose)*e2_transpose-verticesList[0]
-        c=np.dot(verticesList[0],verticesList[0])-(np.dot(verticesList[0],e1_transpose))**2-(np.dot(verticesList[1],e2_transpose)**2)
-        res=np.matmul(np.matmul(np.transpose(v_considéré),A),v_considéré)+2*np.dot(b,v_considéré)+c
-        res_tot+=res
-         
-    "On fait de même pour les faces adjacentes de la seconde arête" 
-                                                                                   
-    for fh in second_vertex_adjacent_face: 
-        
-        verticesList=meshman.get_3_vertices_of_a_face(mesh,fh)                                                                            
-        e1_transpose=(verticesList[1]-verticesList[0])
-        if (np.linalg.norm(e1_transpose) != 0):
-            e1_transpose=e1_transpose/np.linalg.norm(e1_transpose)
-        e1=e1_transpose.reshape(3,1)
-        e2_transpose=(verticesList[2]-verticesList[0])
-        e2_transpose=e2_transpose-np.dot(e1_transpose,e2_transpose)*e1_transpose
-        if (np.linalg.norm(e2_transpose) != 0):
-            e2_transpose=e2_transpose/np.linalg.norm(e2_transpose)
-        e2=e2_transpose.reshape(3,1)
-        n=len(e1)
+    for fh in adjacent_faces:
+        # Récupération des sommets de la face
+        vertices_list = meshman.get_3_vertices_of_a_face(mesh, fh)
 
-        A=np.identity(n) - np.matmul(e1,np.transpose(e1)) - np.matmul(e2,np.transpose(e2))
-        b=np.dot(verticesList[0],e1_transpose)*e1_transpose + np.dot(verticesList[0],e2_transpose)*e2_transpose-verticesList[0]
-        c=np.dot(verticesList[0],verticesList[0])-(np.dot(verticesList[0],e1_transpose))**2-(np.dot(verticesList[1],e2_transpose)**2)
-        res=np.matmul(np.matmul(np.transpose(v_considéré),A),v_considéré)+2*np.dot(b,v_considéré)+c
+        # Calcul des vecteurs e1 et e2 (et normalisation si nécessaire)
+        e1_transpose = vertices_list[1] - vertices_list[0]
+        e1_norm = np.linalg.norm(e1_transpose)
+        if e1_norm > 0:
+            e1_transpose /= e1_norm
 
-        res_tot+=res
+        e2_transpose = vertices_list[2] - vertices_list[0]
+        e2_transpose -= np.dot(e1_transpose, e2_transpose) * e1_transpose
+        e2_norm = np.linalg.norm(e2_transpose)
+        if e2_norm > 0:
+            e2_transpose /= e2_norm
 
-    "On retourne le résultat total"
+        # Conversion en matrices/vecteurs pour les calculs matriciels
+        e1 = e1_transpose[:, np.newaxis]
+        e2 = e2_transpose[:, np.newaxis]
+
+        # Calcul des termes quadrics
+        A = identity_matrix - e1 @ e1.T - e2 @ e2.T
+        b = (
+            np.dot(vertices_list[0], e1_transpose) * e1_transpose
+            + np.dot(vertices_list[0], e2_transpose) * e2_transpose
+            - vertices_list[0]
+        )
+        c = (
+            np.dot(vertices_list[0], vertices_list[0])
+            - np.dot(vertices_list[0], e1_transpose) ** 2
+            - np.dot(vertices_list[0], e2_transpose) ** 2
+        )
+
+        # Calcul de l'erreur pour la face courante
+        res = (
+            np.dot(v_considered.T @ A, v_considered)
+            + 2 * np.dot(b, v_considered)
+            + c
+        )
+        res_tot += res
 
     return res_tot
-
 
 def I(mesh, v0):
     """Calcule l'importance visuelle d'un sommet.

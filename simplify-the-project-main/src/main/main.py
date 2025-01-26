@@ -8,24 +8,28 @@ import error_heap as err_h
 import errors as errs
 import mesh_manipulation as mm
 
+import statistics
+import concurrent.futures
+
 # Credits for bunny.off and teapot.off : gaschler (github)
 
 
 def simplify(mesh, heap, threshold):
-    """Fonction effectuant la simplification du mesh.
+    """Simplifie le maillage en appliquant des collapses de half-edges sous un certain seuil.
 
     Args:
         mesh (Mesh): Mesh à simplifier.
         heap (ErrorHeap): Tas des coûts des half-edge collapses.
+        threshold (float): Seuil d'erreur pour arrêter la simplification.
     
     Returns:
         Mesh: Le mesh simplifié.
     """
-    
     while not heap.is_empty():
         # Extraire le half-edge avec le coût minimum
         error, he = heap.pop()
 
+        # Si l'erreur dépasse le seuil, on arrête
         if error > threshold:
             break
 
@@ -34,14 +38,18 @@ def simplify(mesh, heap, threshold):
             # Collapse du half-edge
             mesh.collapse(he)
 
-            # Mettre à jour les coûts des half-edges affectés
-            affected_halfedges = []
-            for vh in [mesh.from_vertex_handle(he), mesh.to_vertex_handle(he)]:
-                for outgoing_he in mesh.voh(vh):  # Voisins par half-edge
-                    if outgoing_he not in affected_halfedges:
-                        affected_halfedges.append(outgoing_he)
+            # Mise à jour des half-edges affectés
+            affected_halfedges = {}
+            vertices = [mesh.from_vertex_handle(he), mesh.to_vertex_handle(he)]
+            
+            for vh in vertices:
+                # Récupérer tous les voisins du sommet `vh`
+                for outgoing_he in mesh.voh(vh):
+                    # Ajout des half-edges affectés
+                    affected_halfedges[outgoing_he.idx()] = outgoing_he
 
-            for affected_he in affected_halfedges:
+            # Calculer les nouveaux coûts pour les half-edges affectés
+            for affected_he in affected_halfedges.values():
                 if mm.is_collapse_possible(mesh, affected_he):
                     v0 = mesh.from_vertex_handle(affected_he)
                     v1 = mesh.to_vertex_handle(affected_he)
@@ -53,6 +61,7 @@ def simplify(mesh, heap, threshold):
 
     return mesh
 
+
 def main():
     mesh = acq.acquire(sys.argv[1])
 
@@ -61,27 +70,33 @@ def main():
     
     nv1, ne1 = am.comparison_simplification(mesh, True)
 
-
-    # TODO : simplification
-    # 1st step : attribuer les couleurs.
+    # 1ère étape : attribuer les couleurs.
     mm.generate_colors(mesh)
-    # 2nd step : créer le tas.
+    
+    # 2ème étape : créer le tas.
     heap = err_h.ErrorHeap()
     errors_list = []
-    for he in mesh.halfedges():
-        if mm.is_collapse_possible(mesh, he):
-            v0 = mesh.from_vertex_handle(he)
-            v1 = mesh.to_vertex_handle(he)
-            error = errs.error(mesh, v0, v1)
+
+    # Utilisation de concurrent.futures pour paralléliser le calcul des erreurs
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {}
+        for he in mesh.halfedges():
+            if mm.is_collapse_possible(mesh, he):
+                v0 = mesh.from_vertex_handle(he)
+                v1 = mesh.to_vertex_handle(he)
+                future = executor.submit(errs.error, mesh, v0, v1)
+                futures[future] = he
+        
+        for future in concurrent.futures.as_completed(futures):
+            error = future.result()
             errors_list.append(error)
-            elt_heap = [error, he]
+            elt_heap = [error, futures[future]]
             heap.push(elt_heap)
     
-    errors_list.sort()
-    threshold = errors_list[len(errors_list)//2] # Médiane des erreurs
+    threshold = statistics.median(errors_list)
     print(threshold)
     
-    # 3rd step : effectuer la simplification.
+    # 3ème étape : effectuer la simplification.
     start_simplification_time = time.time()
     
     simplified_mesh = simplify(mesh, heap, threshold)
